@@ -85,6 +85,7 @@ static void check_page_installed_pgdir(void);
 static void *
 boot_alloc(uint32_t n)
 {
+	//nextfree 是一个静态char指针，指向内存未分配的地址，需要实现4k对齐。初始化是bss段的末尾，就是内核之后的地址。
 	static char *nextfree;	// virtual address of next byte of free memory
 	char *result;
 
@@ -93,6 +94,7 @@ boot_alloc(uint32_t n)
 	// which points to the end of the kernel's bss segment:
 	// the first virtual address that the linker did *not* assign
 	// to any kernel code or global variables.
+	// ROUNDUP可以将地址扩展为pgsize的倍数,这里表示将nextfree赋值为指向end的char指针
 	if (!nextfree) {
 		extern char end[];
 		nextfree = ROUNDUP((char *) end, PGSIZE);
@@ -103,8 +105,14 @@ boot_alloc(uint32_t n)
 	// to a multiple of PGSIZE.
 	//
 	// LAB 2: Your code here.
+	if(n==0){
+		return nextfree;
+	}else{
+		result=nextfree;
+		nextfree+=ROUNDUP(n,PGSIZE);
+	}
 
-	return NULL;
+	return result;
 }
 
 // Set up a two-level page table:
@@ -126,7 +134,7 @@ mem_init(void)
 	i386_detect_memory();
 
 	// Remove this line when you're ready to test this function.
-	panic("mem_init: This function is not finished\n");
+	// panic("mem_init: This function is not finished\n");
 
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
@@ -149,6 +157,14 @@ mem_init(void)
 	// array.  'npages' is the number of physical pages in memory.  Use memset
 	// to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
+	pages = (struct PageInfo*)boot_alloc(npages * sizeof(struct PageInfo));
+	memset(pages, 0, npages * sizeof(struct PageInfo));
+
+
+	
+
+	
+
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -177,7 +193,7 @@ mem_init(void)
 	//      (ie. perm = PTE_U | PTE_P)
 	//    - pages itself -- kernel RW, user NONE
 	// Your code goes here:
-
+	boot_map_region(kern_pgdir,UPAGES,npages*sizeof(struct PageInfo),PADDR(pages),PTE_U);
 	//////////////////////////////////////////////////////////////////////
 	// Map the 'envs' array read-only by the user at linear address UENVS
 	// (ie. perm = PTE_U | PTE_P).
@@ -197,7 +213,7 @@ mem_init(void)
 	//       overwrite memory.  Known as a "guard page".
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here:
-
+	boot_map_region(kern_pgdir,KSTACKTOP-KSTKSIZE,KSTKSIZE,PADDR(bootstack),PTE_W);
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
 	// Ie.  the VA range [KERNBASE, 2^32) should map to
@@ -206,7 +222,7 @@ mem_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
-
+	boot_map_region(kern_pgdir,KERNBASE,0xffffffff-KERNBASE,0,PTE_W);
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
 
@@ -265,10 +281,16 @@ page_init(void)
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
 	size_t i;
-	for (i = 0; i < npages; i++) {
+	// assert(!page_free_list);
+	for (i = 1; i < PGNUM(IOPHYSMEM); i++) {
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
+	}
+	for(i=PGNUM(PADDR(boot_alloc(0)));i<npages;++i){
+		pages[i].pp_ref=0;
+		pages[i].pp_link=page_free_list;
+		page_free_list=&pages[i];
 	}
 }
 
@@ -284,11 +306,24 @@ page_init(void)
 // Returns NULL if out of free memory.
 //
 // Hint: use page2kva and memset
+//page2kva 可以根据PageInfo* 返回所对应页面的物理地址。
 struct PageInfo *
 page_alloc(int alloc_flags)
 {
 	// Fill this function in
-	return 0;
+	struct PageInfo *alloc_page;
+	if(!page_free_list){
+		return NULL;
+	}else{
+		alloc_page=page_free_list;
+		page_free_list=page_free_list->pp_link;
+		if(alloc_flags&ALLOC_ZERO){
+			memset(page2kva(alloc_page),0,PGSIZE);
+		}
+		alloc_page->pp_link=NULL;
+		alloc_page->pp_ref=0;
+		return alloc_page;	
+	}	
 }
 
 //
@@ -301,6 +336,10 @@ page_free(struct PageInfo *pp)
 	// Fill this function in
 	// Hint: You may want to panic if pp->pp_ref is nonzero or
 	// pp->pp_link is not NULL.
+	assert(!pp->pp_link);
+	assert(pp->pp_ref==0);
+	pp->pp_link=page_free_list;
+	page_free_list=pp;
 }
 
 //
@@ -340,7 +379,32 @@ pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in
-	return NULL;
+	//PDX可以返回虚拟地址对应的页目录的索引
+	assert(pgdir);
+	//得到页目录项的地址
+	pde_t* pde=&pgdir[PDX(va)];
+	pte_t* pg_table=NULL;
+	if(!(*pde&PTE_P)){
+		if(!create){
+			return NULL;
+		}
+		struct PageInfo* new_page=page_alloc(ALLOC_ZERO);
+		if(!new_page){
+			return NULL;
+		}
+		new_page->pp_ref++;
+		// assert(new_page->pp_ref==1);
+		// assert(new_page->pp_link==NULL);
+		*pde=page2pa(new_page)|PTE_P|PTE_W|PTE_U;
+		pg_table=page2kva(new_page);
+	}else{
+		pg_table = (pte_t *)KADDR(PTE_ADDR(*pde));
+	}
+	//
+	// return (pte_t*)(KADDR(PTE_ADDR(*pde)))+PTX(va);
+		
+	//找到页表的起始地址，根据索引取出需要的页表项
+	return &pg_table[PTX(va)];
 }
 
 //
@@ -358,6 +422,13 @@ static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
 	// Fill this function in
+	for(size_t i=0;i<size;i+=PGSIZE){
+		tlb_invalidate(pgdir,(void *)va+i);
+		pte_t* index=pgdir_walk(pgdir,(const void *)va,true);
+		*index=pa|perm|PTE_P;
+		va+=PGSIZE;
+		pa+=PGSIZE;
+	}
 }
 
 //
@@ -389,6 +460,18 @@ int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
 	// Fill this function in
+	pte_t* pg_tab_entry=pgdir_walk(pgdir,(const void*)va,true);
+	if(pg_tab_entry==NULL){
+		return -E_NO_MEM;
+	}
+	// if(pp->pp_link){
+	// 	panic("Error!page is used.");
+	// }
+	pp->pp_ref++;
+	if(*pg_tab_entry&PTE_P){
+		page_remove(pgdir,va);
+	}
+	*pg_tab_entry=page2pa(pp)|PTE_P|perm;
 	return 0;
 }
 
@@ -407,7 +490,12 @@ struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
 	// Fill this function in
-	return NULL;
+	pte_t* page_mapped=pgdir_walk(pgdir,(const void*)va,false);
+	if(!page_mapped||!(*page_mapped&PTE_P)) return NULL;
+	if(pte_store){
+		*pte_store=page_mapped;
+	}
+	return pa2page(PTE_ADDR(*page_mapped));
 }
 
 //
@@ -429,6 +517,17 @@ void
 page_remove(pde_t *pgdir, void *va)
 {
 	// Fill this function in
+	pte_t *pte=NULL;
+	struct PageInfo* pa=page_lookup(pgdir,va,&pte);
+	if(pa!=NULL){
+		page_decref(pa);
+		*pte=0;
+		tlb_invalidate(pgdir,va);
+	}else{
+		return;
+	}
+
+	
 }
 
 //
@@ -754,7 +853,6 @@ check_page(void)
 	assert(page_insert(kern_pgdir, pp2, (void*) PGSIZE, PTE_W) == 0);
 	assert(check_va2pa(kern_pgdir, PGSIZE) == page2pa(pp2));
 	assert(pp2->pp_ref == 1);
-
 	// should be no free memory
 	assert(!page_alloc(0));
 
