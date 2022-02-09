@@ -185,6 +185,16 @@ env_setup_vm(struct Env *e)
 	//    - The functions in kern/pmap.h are handy.
 
 	// LAB 3: Your code here.
+	e->env_pgdir=(pte_t*)page2kva(p);
+	p->pp_ref++;
+	//map va below utop
+	for(i=0;i<PDX(UTOP);++i){
+		e->env_pgdir[i]=0;
+	}
+	//map va up UTOP
+	for(i=PDX(UTOP);i<NPDENTRIES;++i){
+		e->env_pgdir[i]=kern_pgdir[i];
+	}
 
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
@@ -267,6 +277,21 @@ static void
 region_alloc(struct Env *e, void *va, size_t len)
 {
 	// LAB 3: Your code here.
+	void* start=ROUNDDOWN((void*)va,PGSIZE);
+	void* end=ROUNDUP((void*)(va+len),PGSIZE);
+	void* i;
+	int r=0;
+	struct PageInfo *p=NULL;
+	for(int i=0;i<start-end;i+=PGSIZE){
+		p=page_alloc(0);
+		if(p==NULL){
+			panic("alloc fails");
+		}
+		r=page_insert(e->env_pgdir,p,i,PTE_W|PTE_U);
+		if(r!=0){
+			panic("page insert failed");
+		}
+	}
 	// (But only if you need it for load_icode.)
 	//
 	// Hint: It is easier to use region_alloc if the caller can pass
@@ -329,7 +354,7 @@ load_icode(struct Env *e, uint8_t *binary)
 	//  What?  (See env_run() and env_pop_tf() below.)
 
 	// LAB 3: Your code here.
-
+	
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
 
