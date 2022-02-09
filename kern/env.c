@@ -282,7 +282,7 @@ region_alloc(struct Env *e, void *va, size_t len)
 	void* i;
 	int r=0;
 	struct PageInfo *p=NULL;
-	for(int i=0;i<start-end;i+=PGSIZE){
+	for(int i=start;i<end;i+=PGSIZE){
 		p=page_alloc(0);
 		if(p==NULL){
 			panic("alloc fails");
@@ -354,7 +354,7 @@ load_icode(struct Env *e, uint8_t *binary)
 	//  What?  (See env_run() and env_pop_tf() below.)
 
 	// LAB 3: Your code here.
-	
+
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
 
