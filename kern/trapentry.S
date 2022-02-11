@@ -46,10 +46,45 @@
 /*
  * Lab 3: Your code here for generating entry points for the different traps.
  */
+TRAPHANDLER_NOEC(divide_entry,T_DIVIDE);
+TRAPHANDLER_NOEC(debug_entry,T_DEBUG);
+TRAPHANDLER_NOEC(non_maskable_entry,T_NMI);
+TRAPHANDLER_NOEC(breakpoint_entry,T_BRKPT);
+TRAPHANDLER_NOEC(overflow_entry,T_OFLOW);
+TRAPHANDLER_NOEC(bounds_check_entry,T_BOUND);
+TRAPHANDLER_NOEC(invalid_opcode_entry,T_ILLOP);
+TRAPHANDLER_NOEC(divice_not_avail,T_DEVICE);
+TRAPHANDLER(double_fault_entry,T_DBLFLT);
+TRAPHANDLER(invalid_TSS_entry,T_TSS);
+TRAPHANDLER(segment_not_present_entry,T_SEGNP);
+TRAPHANDLER(stack_exception_entry,T_STACK);
+TRAPHANDLER(gplft_entry,T_GPFLT);
+TRAPHANDLER(pgflt_entry,T_PGFLT);
+TRAPHANDLER_NOEC(FPERR_entry,T_FPERR);
+TRAPHANDLER(align_entry,T_ALIGN);
+TRAPHANDLER_NOEC(mchk_entry,T_MCHK);
+TRAPHANDLER_NOEC(SIMDerr_entry,T_SIMDERR);
+TRAPHANDLER_NOEC(syscall_entry,T_SYSCALL);
+
 
 
 
 /*
  * Lab 3: Your code here for _alltraps
+ 将用户的数据段和扩展数据段寄存器推入内核栈中，保证内核可以访问用户的内存
+ pushal将trapframe的地址作为参数推入栈中，作为trap.c的参数。
  */
+
+_alltraps:
+	pushl %ds
+	pushl %es
+	pushal
+
+	movl $GD_KD %eax
+	movl %eax %ds
+	movl %eax %es
+
+	push %esp
+	call trap
+
 
