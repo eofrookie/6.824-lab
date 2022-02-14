@@ -63,8 +63,73 @@ void
 trap_init(void)
 {
 	extern struct Segdesc gdt[];
+	extern long entry_data[][3];//entry_data全局数组有三个变量，1：name 2:num 3: user 
+	// 1为处理程序的名字，2为中断向量号，3为特权等级
+	int i=0;
+	for(i=0;entry_data[i][0]!=0;++i){
+		SETGATE(idt[entry_data[i][1]],0,GD_KT,entry_data[i][0],entry_data[i][2]*3);
+	}
 
 	// LAB 3: Your code here.
+	//初始化中断向量表，插入中断描述符，将中断向量号和中断处理代码关联起来
+	// void divide_entry();
+	// SETGATE(idt[T_DIVIDE],0,GD_KT,divide_entry,0);
+
+	// void debug_entry();
+	// SETGATE(idt[T_DEBUG],0,GD_KT,debug_entry,0);
+
+	// void non_maskable_entry();
+	// SETGATE(idt[T_NMI],0,GD_KT,non_maskable_entry,0);
+
+	// void breakpoint_entry();
+	// SETGATE(idt[T_BRKPT],0,GD_KT,breakpoint_entry,3);
+
+	// void overflow_entry();
+	// SETGATE(idt[T_OFLOW],0,GD_KT,overflow_entry,0);
+
+	// void bounds_check_entry();
+	// SETGATE(idt[T_BOUND],0,GD_KT,bounds_check_entry,0);
+
+	// void invalid_opcode_entry();
+	// SETGATE(idt[T_ILLOP],0,GD_KT,invalid_opcode_entry,0);
+
+	// void device_entry();
+	// SETGATE(idt[T_DEVICE],0,GD_KT,device_entry,0);
+
+	// void double_fault_entry();
+	// SETGATE(idt[T_DBLFLT],0,GD_KT,double_fault_entry,0);
+
+	// void invalid_TSS_entry();
+	// SETGATE(idt[T_TSS],0,GD_KT,invalid_TSS_entry,0);
+
+	// void segment_not_present_entry();
+	// SETGATE(idt[T_SEGNP],0,GD_KT,segment_not_present_entry,0);
+
+	// void stack_exception_entry();
+	// SETGATE(idt[T_STACK],0,GD_KT,stack_exception_entry,0);
+
+	// void gplft_entry();
+	// SETGATE(idt[T_GPFLT],0,GD_KT,gplft_entry,0);
+
+	// void pgflt_entry();
+	// SETGATE(idt[T_PGFLT],0,GD_KT,pgflt_entry,0);
+
+	// void FPERR_entry();
+	// SETGATE(idt[T_FPERR],0,GD_KT,FPERR_entry,0);
+
+	// void align_entry();
+	// SETGATE(idt[T_ALIGN],0,GD_KT,align_entry,0);
+
+	// void mchk_entry();
+	// SETGATE(idt[T_MCHK],0,GD_KT,mchk_entry,0);
+
+	// void SIMDerr_entry();
+	// SETGATE(idt[T_SIMDERR],0,GD_KT,SIMDerr_entry,0);
+
+	// void syscall_entry();
+	// SETGATE(idt[T_SYSCALL],0,GD_KT,syscall_entry,3);
+
+
 
 	// Per-CPU setup 
 	trap_init_percpu();
