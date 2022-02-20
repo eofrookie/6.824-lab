@@ -118,8 +118,8 @@ env_init(void)
 	// LAB 3: Your code here.
 	env_free_list=NULL;
 	for(int i=NENV-1;i>=0;--i){
-		envs[i].env_id=0;
 		envs[i].env_status=ENV_FREE;
+		envs[i].env_id=0;
 		envs[i].env_link=env_free_list;
 		env_free_list=&envs[i];
 	}
@@ -186,7 +186,6 @@ env_setup_vm(struct Env *e)
 
 	// LAB 3: Your code here.
 	e->env_pgdir=(pte_t*)page2kva(p);
-	p->pp_ref++;
 	//map va below utop
 	for(i=0;i<PDX(UTOP);++i){
 		e->env_pgdir[i]=0;
@@ -195,7 +194,7 @@ env_setup_vm(struct Env *e)
 	for(i=PDX(UTOP);i<NPDENTRIES;++i){
 		e->env_pgdir[i]=kern_pgdir[i];
 	}
-
+	p->pp_ref++;
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
 	e->env_pgdir[PDX(UVPT)] = PADDR(e->env_pgdir) | PTE_P | PTE_U;
@@ -281,13 +280,12 @@ region_alloc(struct Env *e, void *va, size_t len)
 	void* end=(void*)ROUNDUP((uint32_t)(va+len),PGSIZE);
 	void* i;
 	int r=0;
-	struct PageInfo *p=NULL;
 	for(i=start;i<end;i+=PGSIZE){
-		p=page_alloc(0);
+		struct PageInfo *p=page_alloc(0);
 		if(p==NULL){
 			panic("alloc fails");
 		}
-		r=page_insert(e->env_pgdir,p,i,PTE_W|PTE_U);
+		r=page_insert(e->env_pgdir,p,i,PTE_U|PTE_W);
 		if(r!=0){
 			panic("page insert failed");
 		}
@@ -360,7 +358,7 @@ load_icode(struct Env *e, uint8_t *binary)
 		panic("failed.The file is not executable");
 	}
 	//不同环境有不同的页目录，切换环境需要加载自己的页目录
-	e->env_tf.tf_eip=header->e_entry;
+	// e->env_tf.tf_eip=header->e_entry;
 	lcr3(PADDR(e->env_pgdir));
 	struct Proghdr *ph, *eph;
 	ph = (struct Proghdr *) ((uint8_t *)header + header->e_phoff);
@@ -376,7 +374,8 @@ load_icode(struct Env *e, uint8_t *binary)
 			memset((void*)ph->p_va+ph->p_filesz,0,ph->p_memsz-ph->p_filesz);
 		}
 	}
-
+	lcr3(PADDR(kern_pgdir));
+	e->env_tf.tf_eip=header->e_entry;
 	// LAB 3: Your code here.
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
@@ -426,6 +425,7 @@ env_free(struct Env *e)
 		lcr3(PADDR(kern_pgdir));
 
 	// Note the environment's demise.
+	// cprintf("aaaa");
 	cprintf("[%08x] free env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
 
 	// Flush all mapped pages in the user portion of the address space
@@ -523,15 +523,18 @@ env_run(struct Env *e)
 	//	e->env_tf to sensible values.
 
 	// LAB 3: Your code here.
-	if(curenv!=NULL&&curenv->env_status==ENV_RUNNING){
+	if(e == NULL)
+		panic("env_run: invalid environment\n");
+	if(curenv!=e&&curenv!=NULL){
 		//进入环境切换状态
-		curenv->env_status=ENV_RUNNABLE;
+		if(curenv->env_status==ENV_RUNNING)
+			curenv->env_status=ENV_RUNNABLE;
 	}
 	curenv=e;
-	e->env_status=ENV_RUNNING;
-	e->env_runs++;
-	lcr3(PADDR(e->env_pgdir));
-	env_pop_tf(&e->env_tf);
+	curenv->env_status=ENV_RUNNING;
+	curenv->env_runs++;
+	lcr3(PADDR(curenv->env_pgdir));
+	env_pop_tf(&(curenv->env_tf));
 	panic("env_run not yet implemented");
 }
 

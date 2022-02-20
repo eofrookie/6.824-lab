@@ -209,7 +209,30 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
-
+	switch (tf->tf_trapno)
+	{
+	case T_PGFLT:
+		page_fault_handler(tf);
+		return;
+	case T_BRKPT:
+		monitor(tf);
+		return;
+	case T_SYSCALL:
+		/*
+		一次傻吊的报错：应该将系统调用的返回值存放到eax寄存器中，被下一步的程序调用，
+		忘记将结果保存到eax寄存器中，导致下一步使用了当前eax寄存器的值，在此例子中
+		为系统调用类型列举号
+		*/
+		tf->tf_regs.reg_eax=syscall(tf->tf_regs.reg_eax,
+		tf->tf_regs.reg_edx,
+		tf->tf_regs.reg_ecx,
+		tf->tf_regs.reg_ebx,
+		tf->tf_regs.reg_edi,
+		tf->tf_regs.reg_esi);
+		return;	
+	default:
+		break;
+	}
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
 	if (tf->tf_cs == GD_KT)
