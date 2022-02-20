@@ -381,56 +381,56 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in
 	//PDX可以返回虚拟地址对应的页目录的索引
-	// assert(pgdir);
-	// //得到页目录项的地址
-	// pde_t* pde=&pgdir[PDX(va)];
-	// pte_t* pg_table=NULL;
-	// if(!(*pde&PTE_P)){
-	// 	if(!create){
-	// 		return NULL;
-	// 	}
-	// 	struct PageInfo* new_page=page_alloc(ALLOC_ZERO);
-	// 	if(!new_page){
-	// 		return NULL;
-	// 	}
-	// 	new_page->pp_ref++;
-	// 	// assert(new_page->pp_ref==1);
-	// 	// assert(new_page->pp_link==NULL);
-	// 	*pde=page2pa(new_page)|PTE_P|PTE_W|PTE_U;
-	// 	pg_table=page2kva(new_page);
-	// }else{
-	// 	pg_table = (pte_t *)KADDR(PTE_ADDR(*pde));
-	// }
-	// //
-	// // return (pte_t*)(KADDR(PTE_ADDR(*pde)))+PTX(va);
-		
-	// //找到页表的起始地址，根据索引取出需要的页表项
-	// return &pg_table[PTX(va)];
-	// Fill this function in
-	pde_t pde = pgdir[PDX(va)];
-	pte_t * result;
-	if(pde & PTE_P)
-	{
-		pte_t * pg_table_p = KADDR(PTE_ADDR(pde));
-		result = pg_table_p + PTX(va);
-		return result;
-	}
-	else if(!create)
-		return NULL;
-	else
-	{
-		struct PageInfo *pp = page_alloc(1);
-		if(!pp)
+	assert(pgdir);
+	//得到页目录项的地址
+	pde_t* pde=&pgdir[PDX(va)];
+	pte_t* pg_table=NULL;
+	if(!(*pde&PTE_P)){
+		if(!create){
 			return NULL;
-		else
-		{
-			pp->pp_ref++;
-			pgdir[PDX(va)] = page2pa(pp) | PTE_P | PTE_W|PTE_U;
-			pte_t * pg_table_p = KADDR(page2pa(pp));
-			result = pg_table_p + PTX(va);
-			return result;
 		}
+		struct PageInfo* new_page=page_alloc(ALLOC_ZERO);
+		if(!new_page){
+			return NULL;
+		}
+		new_page->pp_ref++;
+		// assert(new_page->pp_ref==1);
+		// assert(new_page->pp_link==NULL);
+		*pde=page2pa(new_page)|PTE_P|PTE_W|PTE_U;
+		pg_table=page2kva(new_page);
+	}else{
+		pg_table = (pte_t *)KADDR(PTE_ADDR(*pde));
 	}
+	//
+	return (pte_t*)(KADDR(PTE_ADDR(*pde)))+PTX(va);
+		
+	//找到页表的起始地址，根据索引取出需要的页表项
+	return &pg_table[PTX(va)];
+	// Fill this function in
+	// pde_t pde = pgdir[PDX(va)];
+	// pte_t * result;
+	// if(pde & PTE_P)
+	// {
+	// 	pte_t * pg_table_p = KADDR(PTE_ADDR(pde));
+	// 	result = pg_table_p + PTX(va);
+	// 	return result;
+	// }
+	// else if(!create)
+	// 	return NULL;
+	// else
+	// {
+	// 	struct PageInfo *pp = page_alloc(1);
+	// 	if(!pp)
+	// 		return NULL;
+	// 	else
+	// 	{
+	// 		pp->pp_ref++;
+	// 		pgdir[PDX(va)] = page2pa(pp) | PTE_P | PTE_W|PTE_U;
+	// 		pte_t * pg_table_p = KADDR(page2pa(pp));
+	// 		result = pg_table_p + PTX(va);
+	// 		return result;
+	// 	}
+	// }
 }
 
 //
@@ -592,7 +592,16 @@ int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
 	// LAB 3: Your code here.
-
+	uint32_t start=(uint32_t)ROUNDDOWN((uint32_t)va,PGSIZE);
+	uint32_t end=(uint32_t)ROUNDUP((uint32_t)(va+len),PGSIZE);
+	for(;start<end;start+=PGSIZE){
+		pte_t *pte=pgdir_walk(env->env_pgdir,(void*)start,0);
+		//必须含有perm中的全部，所以要等于perm
+		if(start>=ULIM||pte==NULL||!(*pte&PTE_P)||(*pte&perm)!=perm){
+			user_mem_check_addr=(start<(uint32_t)va)?(uint32_t)va:start;
+			return -E_FAULT;
+		}
+	}
 	return 0;
 }
 
