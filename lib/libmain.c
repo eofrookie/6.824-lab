@@ -13,8 +13,14 @@ libmain(int argc, char **argv)
 {
 	// set thisenv to point at our Env structure in envs[].
 	// LAB 3: Your code here.
+	
 	thisenv = 0;
-
+	envid_t id=sys_getenvid();
+	// cprintf("index of id is %d\n", ENVX(id));
+	thisenv=&envs[ENVX(id)];
+	// cprintf("thisenv->env_tf.tf_cs: %08x\n", thisenv->env_tf.tf_cs);
+	//id==2 why?
+	// cprintf("id am environment %08x\n",id);
 	// save the name of the program so that panic() can use it
 	if (argc > 0)
 		binaryname = argv[0];

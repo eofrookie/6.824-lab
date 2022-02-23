@@ -23,6 +23,7 @@ extern pde_t *kern_pgdir;
  * and returns the corresponding physical address.  It panics if you pass it a
  * non-kernel virtual address.
  */
+// switch va->pa
 #define PADDR(kva) _paddr(__FILE__, __LINE__, kva)
 
 static inline physaddr_t

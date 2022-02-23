@@ -119,7 +119,13 @@ env_init(void)
 {
 	// Set up envs array
 	// LAB 3: Your code here.
-
+	env_free_list=NULL;
+	for(int i=NENV-1;i>=0;--i){
+		envs[i].env_status=ENV_FREE;
+		envs[i].env_id=0;
+		envs[i].env_link=env_free_list;
+		env_free_list=&envs[i];
+	}
 	// Per-CPU part of the initialization
 	env_init_percpu();
 }
@@ -182,7 +188,16 @@ env_setup_vm(struct Env *e)
 	//    - The functions in kern/pmap.h are handy.
 
 	// LAB 3: Your code here.
-
+	e->env_pgdir=(pte_t*)page2kva(p);
+	//map va below utop
+	for(i=0;i<PDX(UTOP);++i){
+		e->env_pgdir[i]=0;
+	}
+	//map va up UTOP
+	for(i=PDX(UTOP);i<NPDENTRIES;++i){
+		e->env_pgdir[i]=kern_pgdir[i];
+	}
+	p->pp_ref++;
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
 	e->env_pgdir[PDX(UVPT)] = PADDR(e->env_pgdir) | PTE_P | PTE_U;
@@ -273,6 +288,20 @@ static void
 region_alloc(struct Env *e, void *va, size_t len)
 {
 	// LAB 3: Your code here.
+	void* start=(void*)ROUNDDOWN((uint32_t)va,PGSIZE);
+	void* end=(void*)ROUNDUP((uint32_t)(va+len),PGSIZE);
+	void* i;
+	int r=0;
+	for(i=start;i<end;i+=PGSIZE){
+		struct PageInfo *p=page_alloc(0);
+		if(p==NULL){
+			panic("alloc fails");
+		}
+		r=page_insert(e->env_pgdir,p,i,PTE_U|PTE_W);
+		if(r!=0){
+			panic("page insert failed");
+		}
+	}
 	// (But only if you need it for load_icode.)
 	//
 	// Hint: It is easier to use region_alloc if the caller can pass
@@ -333,12 +362,36 @@ load_icode(struct Env *e, uint8_t *binary)
 	//  You must also do something with the program's entry point,
 	//  to make sure that the environment starts executing there.
 	//  What?  (See env_run() and env_pop_tf() below.)
-
+	struct Elf* header=(struct Elf*)(binary);
+	if(header->e_magic!=ELF_MAGIC){
+		panic("It is not valid Elf file!");
+	}
+	if(header->e_entry==0){
+		panic("failed.The file is not executable");
+	}
+	//不同环境有不同的页目录，切换环境需要加载自己的页目录
+	// e->env_tf.tf_eip=header->e_entry;
+	lcr3(PADDR(e->env_pgdir));
+	struct Proghdr *ph, *eph;
+	ph = (struct Proghdr *) ((uint8_t *)header + header->e_phoff);
+	eph=ph+header->e_phnum;
+	for(;ph<eph;ph++){
+		//只加载特定类型
+		if(ph->p_type==ELF_PROG_LOAD){
+			if(ph->p_filesz>ph->p_memsz){
+				panic("The size is wrong");
+			}
+			region_alloc(e,(void *)ph->p_va,ph->p_memsz);
+			memmove((void*)ph->p_va,(const void*)(binary + ph->p_offset),ph->p_filesz);
+			memset((void*)ph->p_va+ph->p_filesz,0,ph->p_memsz-ph->p_filesz);
+		}
+	}
+	lcr3(PADDR(kern_pgdir));
+	e->env_tf.tf_eip=header->e_entry;
 	// LAB 3: Your code here.
-
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
-
+	region_alloc(e,(void *)(USTACKTOP-PGSIZE),PGSIZE);
 	// LAB 3: Your code here.
 }
 
@@ -352,6 +405,18 @@ load_icode(struct Env *e, uint8_t *binary)
 void
 env_create(uint8_t *binary, enum EnvType type)
 {
+	//可以使用panic来打log
+	struct Env *e=NULL;
+	int r=0;
+	r=env_alloc(&e,0);
+	if(r==-E_NO_FREE_ENV){
+		panic("all NENV environments are allocated");
+	}else if(r==-E_NO_MEM){
+		panic("memory exhausted");
+	}else if(r==0){
+		load_icode(e,binary);
+		e->env_type=type;
+	}
 	// LAB 3: Your code here.
 }
 
@@ -372,6 +437,7 @@ env_free(struct Env *e)
 		lcr3(PADDR(kern_pgdir));
 
 	// Note the environment's demise.
+	// cprintf("aaaa");
 	cprintf("[%08x] free env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
 
 	// Flush all mapped pages in the user portion of the address space
@@ -483,7 +549,18 @@ env_run(struct Env *e)
 	//	e->env_tf to sensible values.
 
 	// LAB 3: Your code here.
-
+	if(e == NULL)
+		panic("env_run: invalid environment\n");
+	if(curenv!=e&&curenv!=NULL){
+		//进入环境切换状态
+		if(curenv->env_status==ENV_RUNNING)
+			curenv->env_status=ENV_RUNNABLE;
+	}
+	curenv=e;
+	curenv->env_status=ENV_RUNNING;
+	curenv->env_runs++;
+	lcr3(PADDR(curenv->env_pgdir));
+	env_pop_tf(&(curenv->env_tf));
 	panic("env_run not yet implemented");
 }
 
