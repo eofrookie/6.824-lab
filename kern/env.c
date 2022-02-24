@@ -551,6 +551,7 @@ env_run(struct Env *e)
 	// LAB 3: Your code here.
 	if(e == NULL)
 		panic("env_run: invalid environment\n");
+	lock_kernel();
 	if(curenv!=e&&curenv!=NULL){
 		//进入环境切换状态
 		if(curenv->env_status==ENV_RUNNING)
@@ -561,6 +562,7 @@ env_run(struct Env *e)
 	curenv->env_runs++;
 	lcr3(PADDR(curenv->env_pgdir));
 	env_pop_tf(&(curenv->env_tf));
-	panic("env_run not yet implemented");
+	unlock_kernel();
+	// panic("env_run not yet implemented");
 }
 
