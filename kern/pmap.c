@@ -325,7 +325,7 @@ page_init(void)
     pages[0].pp_link = NULL;
 	size_t i;
 	//可以得出extended后面未被分配的第一页，因此可以得出已经被分配的页面从哪里结束
-    size_t kernel_end_page = PGNUM(PADDR(boot_alloc(0))) ;
+    size_t kernel_end_page = PGNUM(PADDR(boot_alloc(0)) );
 	size_t mpentry = PGNUM(MPENTRY_PADDR) ;
     for (i = 1; i < npages; i++) {
         if (i >= npages_basemem && i < kernel_end_page) {
