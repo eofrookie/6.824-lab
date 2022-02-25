@@ -34,10 +34,9 @@ sched_yield(void)
 	if(curenv){
 		index=ENVX(curenv->env_id);
 	}
-	for(int i=index;i<index+NENV;++i){
+	for(int i=index;i!=index+NENV;++i){
 		if(envs[i%NENV].env_status==ENV_RUNNABLE){
 			env_run(&envs[i%NENV]);
-			return;
 		}
 	}
 	if(curenv&&curenv->env_status==ENV_RUNNING){
