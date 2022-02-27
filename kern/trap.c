@@ -399,16 +399,40 @@ page_fault_handler(struct Trapframe *tf)
 	// page for its exception stack or can't write to it, or the exception
 	// stack overflows, then destroy the environment that caused the fault.
 	// Note that the grade script assumes you will first check for the page
-	// fault upcall and print the "user fault va" message below if there is
+	// fault user_mem_assert()upcall and print the "user fault va" message below if there is
 	// none.  The remaining three checks can be combined into a single test.
 	//
 	// Hints:
 	//   user_mem_assert() and env_run() are useful here.
 	//   To change what the user environment runs, modify 'curenv->env_tf'
 	//   (the 'tf' variable points at 'curenv->env_tf').
-
+	//1.如何确定当前环境的错误栈顶
+	// 2. 如何将错误栈帧作为环境的栈顶继续运行当前环境，从而完成页面错误的处理
+	// 3. 如何判断当前的错误处理程序已经在运行，以及如何处理这种情况
+	// 4. 对于各种错误应该如何处理：栈溢出、权限问题等等
 	// LAB 4: Your code here.
-
+	struct UTrapframe *utfptr;
+	size_t size=sizeof(struct UTrapframe);
+	if(curenv->env_pgfault_upcall!=NULL){
+		if(tf->tf_esp>=UXSTACKTOP-PGSIZE&&tf->tf_esp<=UXSTACKTOP-1){
+			utfptr=(struct UTrapframe*)(tf->tf_esp-size-4);
+			user_mem_assert(curenv,(void*)utfptr,size+4,PTE_W);
+		}else{
+			utfptr=(struct UTrapframe*)(UXSTACKTOP-size);
+			user_mem_assert(curenv,(void*)utfptr,size,PTE_W);
+		}
+		user_mem_assert(curenv,(void*)utfptr,size,PTE_W);
+		utfptr->utf_eflags=tf->tf_eflags;
+		utfptr->utf_eip=tf->tf_eip;
+		utfptr->utf_err=tf->tf_err;
+		utfptr->utf_esp=tf->tf_esp;
+		utfptr->utf_fault_va=fault_va;
+		utfptr->utf_regs=tf->tf_regs;
+		curenv->env_tf.tf_eip=(uintptr_t)curenv->env_pgfault_upcall;
+		curenv->env_tf.tf_esp=utfptr;
+		// curenv->env_tf=*tf;
+		env_run(curenv);
+	}
 	// Destroy the environment that caused the fault.
 	cprintf("[%08x] user fault va %08x ip %08x\n",
 		curenv->env_id, fault_va, tf->tf_eip);
