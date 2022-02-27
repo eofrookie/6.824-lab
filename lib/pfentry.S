@@ -37,11 +37,11 @@ _pgfault_upcall:
 	movl _pgfault_handler, %eax
 	call *%eax
 	addl $4, %esp			// pop function argument
-	
 	// Now the C page fault handler has returned and you must return
 	// to the trap time state.
 	// Push trap-time %eip onto the trap-time stack.
-	//
+	//ret指令返回并将栈顶的内容pop给eip寄存器，也就是使得控制流接下来从栈顶的内容的地址开始执行
+	//所以需要将之前的保存的trap time state eip寄存器推到trap time state esp上面，再执行ret指令
 	// Explanation:
 	//   We must prepare the trap-time stack for our eventual return to
 	//   re-execute the instruction that faulted.
@@ -65,18 +65,28 @@ _pgfault_upcall:
 	// ways as registers become unavailable as scratch space.
 	//
 	// LAB 4: Your code here.
-
+	movl 40(%esp), %eax			// 取出trap time eip
+	movl 48(%esp), %ebx			# 取出trap time esp
+	subl $4, %ebx				# trap time栈顶向下增长，用于存放trap time eip
+	movl %eax, (%ebx)			# 将eip放到esp上
+	addl $8, %esp				# 跳过两个 fault_va和err code
 	// Restore the trap-time registers.  After you do this, you
 	// can no longer modify any general-purpose registers.
 	// LAB 4: Your code here.
-
+	popal
+	addl $4, %esp
 	// Restore eflags from the stack.  After you do this, you can
 	// no longer use arithmetic operations or anything else that
-	// modifies eflags.
+	// modifies eflags.之后使用的指令不能修改eflags寄存器的内容，如加减都不可以，会改变状态位，如判断溢出等 
 	// LAB 4: Your code here.
-
+	popfl
 	// Switch back to the adjusted trap-time stack.
 	// LAB 4: Your code here.
-
+	popl %esp
+	lea -4(%esp),%esp
 	// Return to re-execute the instruction that faulted.
 	// LAB 4: Your code here.
+	ret
+	
+	
+	

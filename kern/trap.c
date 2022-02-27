@@ -411,23 +411,23 @@ page_fault_handler(struct Trapframe *tf)
 	// 3. 如何判断当前的错误处理程序已经在运行，以及如何处理这种情况
 	// 4. 对于各种错误应该如何处理：栈溢出、权限问题等等
 	// LAB 4: Your code here.
-	struct UTrapframe *utfptr;
+	uintptr_t utfptr;
 	size_t size=sizeof(struct UTrapframe);
 	if(curenv->env_pgfault_upcall!=NULL){
 		if(tf->tf_esp>=UXSTACKTOP-PGSIZE&&tf->tf_esp<=UXSTACKTOP-1){
-			utfptr=(struct UTrapframe*)(tf->tf_esp-size-4);
+			utfptr=(tf->tf_esp-size-4);
 			user_mem_assert(curenv,(void*)utfptr,size+4,PTE_W);
 		}else{
-			utfptr=(struct UTrapframe*)(UXSTACKTOP-size);
+			utfptr=(UXSTACKTOP-size);
 			user_mem_assert(curenv,(void*)utfptr,size,PTE_W);
 		}
-		user_mem_assert(curenv,(void*)utfptr,size,PTE_W);
-		utfptr->utf_eflags=tf->tf_eflags;
-		utfptr->utf_eip=tf->tf_eip;
-		utfptr->utf_err=tf->tf_err;
-		utfptr->utf_esp=tf->tf_esp;
-		utfptr->utf_fault_va=fault_va;
-		utfptr->utf_regs=tf->tf_regs;
+		struct UTrapframe *utf=(struct UTrapframe*)utfptr;
+		utf->utf_eflags=tf->tf_eflags;
+		utf->utf_eip=tf->tf_eip;
+		utf->utf_err=tf->tf_err;
+		utf->utf_esp=tf->tf_esp;
+		utf->utf_fault_va=fault_va;
+		utf->utf_regs=tf->tf_regs;
 		curenv->env_tf.tf_eip=(uintptr_t)curenv->env_pgfault_upcall;
 		curenv->env_tf.tf_esp=utfptr;
 		// curenv->env_tf=*tf;
