@@ -5,7 +5,8 @@
 
 extern void umain(int argc, char **argv);
 
-const volatile struct Env *thisenv;
+// const volatile struct Env *thisenv;
+extern volatile struct Env *envs_ptr[NENV];
 const char *binaryname = "<unknown>";
 
 void
@@ -14,6 +15,9 @@ libmain(int argc, char **argv)
 	// set thisenv to point at our Env structure in envs[].
 	// LAB 3: Your code here.
 	
+	for(int i=0;i<NENV;++i){
+		envs_ptr[i]=&envs[i];
+	}
 	thisenv = 0;
 	envid_t id=sys_getenvid();
 	// cprintf("index of id is %d\n", ENVX(id));

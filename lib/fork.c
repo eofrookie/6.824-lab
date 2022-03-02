@@ -138,10 +138,56 @@ fork(void)
 	// panic("fork not implemented");
 }
 
+static int
+sduppage(envid_t envid, unsigned pn){
+	int r;
+	pte_t pte=uvpt[pn];
+	void* addr=(void*)(pn*PGSIZE);
+	uint32_t perm=pte&0xFFF;
+	if((r=sys_page_map(0,addr,envid,addr,perm&PTE_SYSCALL))<0){
+		panic("page_map error;%e",r);
+	}
+	return 0;
+}
 // Challenge!
 int
 sfork(void)
 {
-	panic("sfork not implemented");
-	return -E_INVAL;
+	extern void _pgfault_upcall(void);
+	int r;
+	set_pgfault_handler(pgfault);
+	envid_t child=sys_exofork();
+	uint8_t *addr;
+	if(child<0){
+		panic("sys_exofork: %e", child);
+	}else if(child==0){
+		thisenv=&envs[ENVX(child)];
+		// set_pgfault_handler(pgfault);
+		return 0;
+	}
+		
+	//除了用户栈区域都为共享的，所以从栈低开始判断，到达栈顶之后，之后的内存还没被映射，所以pte_p不为1
+	bool in_stack=true;
+	for (addr = (uint8_t*)(USTACKTOP-PGSIZE); addr >= (uint8_t*)UTEXT; addr -= PGSIZE){
+		if((uvpd[PDX(addr)]&PTE_P)&&(uvpt[PGNUM(addr)]&PTE_P)){
+			if(in_stack){
+				duppage(child,PGNUM(addr));
+			}else{
+				sduppage(child,PGNUM(addr));
+			}
+		}else{
+			in_stack=false;
+		}
+	}
+	if((r=sys_page_alloc(child,(void*)(UXSTACKTOP-PGSIZE),PTE_W|PTE_P|PTE_U))<0){
+		panic("page_alloc error:%e",r);
+	}
+	if((r=sys_env_set_pgfault_upcall(child,_pgfault_upcall))<0){
+		panic("set_pgfault error:%e",r);
+	}
+	if ((r = sys_env_set_status(child, ENV_RUNNABLE)) < 0)
+		panic("sys_env_set_status: %e", r);
+	return child;
+	// panic("sfork not implemented");
+	// return -E_INVAL;
 }

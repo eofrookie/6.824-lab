@@ -25,9 +25,13 @@ void	umain(int argc, char **argv);
 
 // libmain.c or entry.S
 extern const char *binaryname;
-extern const volatile struct Env *thisenv;
+// extern const volatile struct Env *thisenv;
+extern const volatile struct Env *envs_ptr[NENV];
 extern const volatile struct Env envs[NENV];
 extern const volatile struct PageInfo pages[];
+#define thisenv envs_ptr[ENVX(sys_getenvid())]
+//复制一个指向环境数组的指针数组，thisenv必须为可以复制的左值，所以宏定义thisenv为数组中
+// 的一个
 
 // exit.c
 void	exit(void);
