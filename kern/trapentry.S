@@ -81,6 +81,22 @@ TRAPHANDLER(align_entry,T_ALIGN,1,0);
 TRAPHANDLER(mchk_entry,T_MCHK,0,0);
 TRAPHANDLER(SIMDerr_entry,T_SIMDERR,0,0);
 TRAPHANDLER(syscall_entry,T_SYSCALL,0,1);
+TRAPHANDLER(irq_entry1,32,0,0);
+TRAPHANDLER(irq_entry2,33,0,0);
+TRAPHANDLER(irq_entry3,34,0,0);
+TRAPHANDLER(irq_entry4,35,0,0);
+TRAPHANDLER(irq_entry5,36,0,0);
+TRAPHANDLER(irq_entry6,37,0,0);
+TRAPHANDLER(irq_entry7,38,0,0);
+TRAPHANDLER(irq_entry8,39,0,0);
+TRAPHANDLER(irq_entry9,40,0,0);
+TRAPHANDLER(irq_entry10,41,0,0);
+TRAPHANDLER(irq_entry11,42,0,0);
+TRAPHANDLER(irq_entry12,43,0,0);
+TRAPHANDLER(irq_entry13,44,0,0);
+TRAPHANDLER(irq_entry14,45,0,0);
+TRAPHANDLER(irq_entry15,46,0,0);
+TRAPHANDLER(irq_entry16,47,0,0);
 .data
 	.long 0,0,0
 
