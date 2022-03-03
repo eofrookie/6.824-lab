@@ -114,7 +114,8 @@ fork(void)
 	if(child<0){
 		panic("sys_exofork: %e", child);
 	}else if(child==0){
-		thisenv=&envs[ENVX(child)];
+		//将thisenv指向当前进程的环境，用child在子进程中会将thisenv指向envs[0]
+		thisenv=&envs[ENVX(sys_getenvid())];
 		// set_pgfault_handler(pgfault);
 		return 0;
 	}
@@ -161,7 +162,7 @@ sfork(void)
 	if(child<0){
 		panic("sys_exofork: %e", child);
 	}else if(child==0){
-		thisenv=&envs[ENVX(child)];
+		thisenv=&envs[ENVX(sys_getenvid())];
 		// set_pgfault_handler(pgfault);
 		return 0;
 	}
