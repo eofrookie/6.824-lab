@@ -67,19 +67,17 @@ duppage(envid_t envid, unsigned pn)
 {
 	int r;
 	uintptr_t addr=pn*PGSIZE;
-	int perm=PTE_U|PTE_P;
+	pte_t pte=uvpt[pn];
+	int perm=pte&0xfff;
 	if((uvpt[PGNUM(addr)]&(PTE_W|PTE_COW))!=0){
+		perm&=~PTE_W;
 		perm|=PTE_COW;
-		if((r=sys_page_map(0,(void*)addr,envid,(void*)addr,perm))<0){
-			panic("page_map error:%e",r);
-		}
-		if((r=sys_page_map(0,(void*)addr,0,(void*)addr,perm))<0){
-			panic("page_map error:%e",r);
-		}
-	}else{
-		if((r=sys_page_map(0,(void*)addr,envid,(void*)addr,perm))<0){
-			panic("page_map error:%e",r);
-		}
+	}
+	if((r=sys_page_map(0,(void*)addr,envid,(void*)addr,perm&PTE_SYSCALL))<0){
+		panic("page_map error:%e",r);
+	}
+	if((r=sys_page_map(0,(void*)addr,0,(void*)addr,perm&PTE_SYSCALL))<0){
+		panic("page_map error:%e",r);
 	}
 	// LAB 4: Your code here.
 	// panic("duppage not implemented");
