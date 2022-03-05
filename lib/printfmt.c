@@ -205,7 +205,6 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 			}
 			base = 10;
 			goto number;
-
 		// unsigned decimal
 		case 'u':
 			num = getuint(&ap, lflag);
@@ -215,10 +214,9 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 		// (unsigned) octal
 		case 'o':
 			// Replace this with your code.
-			putch('X', putdat);
-			putch('X', putdat);
-			putch('X', putdat);
-			break;
+			num=getuint(&ap,lflag);
+			base=8;
+			goto number;
 
 		// pointer
 		case 'p':
