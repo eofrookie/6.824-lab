@@ -112,7 +112,7 @@ TRAPHANDLER(irq_entry16,47,0,0);
 _alltraps:
 	pushl %ds
 	pushl %es
-	pushal
+	pushal					;将常规寄存器入栈
 
 	movl $GD_KD,%eax
 	movl %eax,%ds

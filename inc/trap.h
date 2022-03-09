@@ -62,7 +62,8 @@ struct Trapframe {
 	uint16_t tf_ds;
 	uint16_t tf_padding2;
 	uint32_t tf_trapno;
-	/* below here defined by x86 hardware */
+	/* below here defined by x86 hardware 每次中断处理需要一个Trapframe数据结构，部分由x86
+	硬件推进栈，下面部分由硬件产生，上面的需要通过trapentry.s中的alltrap进行处理*/
 	uint32_t tf_err;
 	uintptr_t tf_eip;
 	uint16_t tf_cs;
