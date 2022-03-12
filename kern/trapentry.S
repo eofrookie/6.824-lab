@@ -107,12 +107,13 @@ TRAPHANDLER(irq_entry16,47,0,0);
  * Lab 3: Your code here for _alltraps
  将用户的数据段和扩展数据段寄存器推入内核栈中，保证内核可以访问用户的内存
  pushal将trapframe的地址作为参数推入栈中，作为trap.c的参数。
+ pushal将常规寄存器入栈
  */
 
 _alltraps:
 	pushl %ds
 	pushl %es
-	pushal					;将常规寄存器入栈
+	pushal
 
 	movl $GD_KD,%eax
 	movl %eax,%ds

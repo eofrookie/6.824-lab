@@ -49,7 +49,7 @@ free_block(uint32_t blockno)
 // Search the bitmap for a free block and allocate it.  When you
 // allocate a block, immediately flush the changed bitmap block
 // to disk.
-//
+// bitmap是位图
 // Return block number allocated on success,
 // -E_NO_DISK if we are out of blocks.
 //
@@ -60,9 +60,14 @@ alloc_block(void)
 	// The bitmap consists of one or more blocks.  A single bitmap block
 	// contains the in-use bits for BLKBITSIZE blocks.  There are
 	// super->s_nblocks blocks in the disk altogether.
-
+	for(uint32_t i=1;i<=super->s_nblocks;i++){
+		if(block_is_free(i)){
+			bitmap[i/32] ^= 1<<(i%32);
+			return i;
+		}
+	}
 	// LAB 5: Your code here.
-	panic("alloc_block not implemented");
+	// panic("alloc_block not implemented");
 	return -E_NO_DISK;
 }
 
