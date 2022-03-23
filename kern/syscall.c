@@ -378,11 +378,10 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	{
 		return -E_IPC_NOT_RECV;
 	}
-	e->env_ipc_perm = 0;
 	if ((uint32_t)srcva < UTOP)
 	{
 		if ((uint32_t)srcva & 0xFFF || (perm & PTE_SYSCALL) != perm)
-			return -E_INVAL;
+			return E_INVAL;
 		/*
 			将发送者的一页映射给接收者，该系统调用的过程中，所有的envid2env 检查权限都要为0，说明
 			不需要检查权限，使用sys_page_map调用的过程中，会检查权限，所以不用使用page_map调用
@@ -400,7 +399,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		{
 			return -E_BAD_ENV;
 		}
-		srcp = page_lookup(srce->env_pgdir, srcva, &srcpte);
+		srcp = page_lookup(curenv->env_pgdir, srcva, &srcpte);
 		if (!srcp)
 		{
 			return -E_INVAL;
@@ -409,14 +408,18 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		{
 			return -E_INVAL;
 		}
-		if (page_insert(dste->env_pgdir, srcp, dste->env_ipc_dstva, perm) < 0)
-		{
-			return -E_NO_MEM;
+		if((size_t)dste->env_ipc_dstva<UTOP){
+			if(page_insert(dste->env_pgdir, srcp, dste->env_ipc_dstva, perm) < 0){
+				return -E_NO_MEM;
+			}
+			e->env_ipc_perm = perm;
 		}
-		e->env_ipc_perm = perm;
+		
+	}else{
+		e->env_ipc_perm=0;
 	}
+	e->env_ipc_from = curenv->env_id;
 	e->env_ipc_recving = 0;
-	e->env_ipc_from = sys_getenvid();
 	e->env_ipc_value = value;
 	e->env_status = ENV_RUNNABLE;
 	e->env_tf.tf_regs.reg_eax = 0;
@@ -441,7 +444,7 @@ sys_ipc_recv(void *dstva)
 	// LAB 4: Your code here.
 	// panic("sys_ipc_recv not implemented");
 	struct Env *e;
-	if (envid2env(0, &e, 0))
+	if (envid2env(0, &e, 0)<0)
 	{
 		return -E_BAD_ENV;
 	}
@@ -499,9 +502,14 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		return sys_env_set_pgfault_upcall((envid_t)a1, (void *)a2);
 	case SYS_ipc_recv:
 		return sys_ipc_recv((void *)a1);
+		break;
 	case SYS_ipc_try_send:
 		return sys_ipc_try_send((envid_t)a1, (a2), (void *)a3, (unsigned int)a4);
+		break;
+	case SYS_env_set_trapframe:
+		return sys_env_set_trapframe(a1,(struct Trapframe *)a2);
 	default:
 		return -E_INVAL;
 	}
+	return -E_INVAL;
 }

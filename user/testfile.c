@@ -46,9 +46,10 @@ umain(int argc, char **argv)
 	cprintf("file_stat is good\n");
 
 	memset(buf, 0, sizeof buf);
-	if ((r = devfile.dev_read(FVA, buf, sizeof buf)) < 0)
+	if ((r = devfile.dev_read(FVA, buf,sizeof buf)) < 0)
 		panic("file_read: %e", r);
-	if (strcmp(buf, msg) != 0)
+	
+	if(strcmp(buf, msg) != 0)
 		panic("file_read returned wrong data");
 	cprintf("file_read is good\n");
 

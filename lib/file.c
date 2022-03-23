@@ -79,7 +79,6 @@ open(const char *path, int mode)
 
 	strcpy(fsipcbuf.open.req_path, path);
 	fsipcbuf.open.req_omode = mode;
-
 	if ((r = fsipc(FSREQ_OPEN, fd)) < 0) {
 		fd_close(fd, 0);
 		return r;
@@ -123,6 +122,8 @@ devfile_read(struct Fd *fd, void *buf, size_t n)
 		return r;
 	assert(r <= n);
 	assert(r <= PGSIZE);
+	// cprintf("%d--%s",r,fsipcbuf.readRet.ret_buf);
+	//最终的返回值为1，内容确实读取到了，但是recv的value错误了。
 	memmove(buf, fsipcbuf.readRet.ret_buf, r);
 	return r;
 }
