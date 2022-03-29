@@ -58,7 +58,7 @@ int alloc_block(void)
 	// super->s_nblocks blocks in the disk altogether.
 	//空闲块的分配主要参照文件系统的结构图，清楚从哪里开始，1和2都为特殊的块
 	int j = (super->s_nblocks + BLKBITSIZE - 1) / BLKBITSIZE;
-	for (uint32_t i = 2 + j; i <= super->s_nblocks; i++)
+	for (uint32_t i = 2+j; i <= super->s_nblocks; i++)
 	{
 		if (block_is_free(i))
 		{
@@ -145,8 +145,7 @@ file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool all
 	}
 	if (filebno < NDIRECT)
 	{
-		if (ppdiskbno)
-			*ppdiskbno = f->f_direct + filebno;
+		*ppdiskbno=&(f->f_direct[filebno]);
 		return 0;
 	}
 	if (!f->f_indirect)
@@ -164,7 +163,7 @@ file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool all
 			}
 			//更新f
 			f->f_indirect = blockno;
-			memset(diskaddr(blockno), 0, BLKSIZE);
+			// memset(diskaddr(blockno), 0, BLKSIZE);
 			flush_block(diskaddr(blockno));
 			//分配得到一个块存储indirect block
 		}
@@ -200,7 +199,7 @@ int file_get_block(struct File *f, uint32_t filebno, char **blk)
 		}
 		*pdiskbno = r;
 		//每次分配新的块的时候记得clear和刷新回硬盘
-		memset(diskaddr(r), 0, BLKSIZE);
+		// memset(diskaddr(r), 0, BLKSIZE);
 		flush_block(diskaddr(r));
 	}
 	*blk = (char *)diskaddr(*pdiskbno);
@@ -386,7 +385,7 @@ file_read(struct File *f, void *buf, size_t count, off_t offset)
 		return 0;
 
 	count = MIN(count, f->f_size - offset);
-
+	//读了37个字符
 	for (pos = offset; pos < offset + count;)
 	{
 		if ((r = file_get_block(f, pos / BLKSIZE, &blk)) < 0)
@@ -396,7 +395,6 @@ file_read(struct File *f, void *buf, size_t count, off_t offset)
 		pos += bn;
 		buf += bn;
 	}
-
 	return count;
 }
 

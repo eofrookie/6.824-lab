@@ -9,7 +9,7 @@
 #include "fs.h"
 
 
-#define debug 0
+#define debug 1
 
 // The file system server maintains three structures
 // for each open file.
@@ -210,11 +210,25 @@ serve_read(envid_t envid, union Fsipc *ipc)
 	struct Fsreq_read *req = &ipc->read;
 	struct Fsret_read *ret = &ipc->readRet;
 
-	if (debug)
-		cprintf("serve_read %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
+	if (debug)
+		cprintf("serve_read %08x %08x %08x %08x\n", envid, req->req_fileid, req->req_n,ret->ret_buf);
+	struct OpenFile *o;
+	int r;
+	if((r=openfile_lookup(envid,req->req_fileid,&o))<0){
+		return r;
+	}
+	//一次奇怪的bug，文件读取大小为0，正常应该返回r=count,但是把<0放在括号内，导致r=(布尔表达式false)，导致出错。
+	if((r=file_read(o->o_file,ret->ret_buf,req->req_n,o->o_fd->fd_offset))<0){
+		return r;
+	}
+	// if(debug)
+	// 	cprintf("%s",ret->ret_buf);//把数据读取到fdreq上了
+	o->o_fd->fd_offset+=r;
+	// panic("%d",r);
+	return r;
 	// Lab 5: Your code here:
-	return 0;
+	
 }
 
 
@@ -227,9 +241,21 @@ serve_write(envid_t envid, struct Fsreq_write *req)
 {
 	if (debug)
 		cprintf("serve_write %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
+	struct OpenFile *o;
+	int r;
+
+	if((r=openfile_lookup(envid,req->req_fileid,&o))<0){
+		return r;
+	}
+	// req->req_n=req->req_n>PGSIZE ? PGSIZE : req->req_n;
+	if((r=file_write(o->o_file,req->req_buf,req->req_n,o->o_fd->fd_offset))<0){
+		return r;
+	}
+	o->o_fd->fd_offset+=r;
+	return r;
 
 	// LAB 5: Your code here.
-	panic("serve_write not implemented");
+	// panic("serve_write not implemented");
 }
 
 // Stat ipc->stat.req_fileid.  Return the file's struct Stat to the
