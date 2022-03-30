@@ -3,6 +3,7 @@
         "spinlock.h": "c",
         "syscall.h": "c",
         "kclock.h": "c",
-        "mmu.h": "c"
+        "mmu.h": "c",
+        "lib.h": "c"
     }
 }

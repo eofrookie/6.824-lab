@@ -69,6 +69,12 @@ duppage(envid_t envid, unsigned pn)
 	uintptr_t addr=pn*PGSIZE;
 	pte_t pte=uvpt[pn];
 	int perm=pte&0xfff;
+	if(pte&PTE_SHARE){
+		if((r=sys_page_map(0,(void*)addr,envid,(void*)addr,perm&PTE_SYSCALL))<0){
+			panic("sys_page_map error:%e",r);
+		}
+		return 0;
+	}
 	if((uvpt[PGNUM(addr)]&(PTE_W|PTE_COW))!=0){
 		perm&=~PTE_W;
 		perm|=PTE_COW;
