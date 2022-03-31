@@ -413,16 +413,15 @@ env_create(uint8_t *binary, enum EnvType type)
 		panic("all NENV environments are allocated");
 	}else if(r==-E_NO_MEM){
 		panic("memory exhausted");
-	}else if(r==0){
-		load_icode(e,binary);
-		e->env_type=type;
 	}
+	e->env_type=type;
+	load_icode(e,binary);
 	// LAB 3: Your code here.
 
 	// If this is the file server (type == ENV_TYPE_FS) give it I/O privileges.
 	// LAB 5: Your code here.
 	if(type==ENV_TYPE_FS){
-		e->env_tf.tf_eflags|=FL_IOPL_3;
+		e->env_tf.tf_eflags|=FL_IOPL_MASK;
 	}
 }
 

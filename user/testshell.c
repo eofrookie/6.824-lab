@@ -38,7 +38,6 @@ umain(int argc, char **argv)
 	}
 	close(rfd);
 	close(wfd);
-
 	rfd = pfds[0];
 	if ((kfd = open("testshell.key", O_RDONLY)) < 0)
 		panic("open testshell.key for reading: %e", kfd);

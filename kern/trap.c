@@ -271,6 +271,14 @@ trap_dispatch(struct Trapframe *tf)
 		tf->tf_regs.reg_edi,
 		tf->tf_regs.reg_esi);
 		return;	
+	case IRQ_OFFSET+IRQ_KBD:
+		// lapic_eoi();
+		kbd_intr();
+		return;
+	case IRQ_OFFSET+IRQ_SERIAL:
+		// lapic_eoi();
+		serial_intr();
+		return;
 	default:
 		break;
 	}
@@ -291,6 +299,7 @@ trap_dispatch(struct Trapframe *tf)
 		lapic_eoi();
 		sched_yield();
 	}
+	//需要lapic_eoi()开启io中断
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
 	if (tf->tf_cs == GD_KT)
